@@ -2,16 +2,26 @@
 <html>
   <head>
     <title>Cardano Gift Card</title>
-    <link rel="stylesheet" href="claim-ada.css" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/index.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
   <body>
     <header>
-      <h1>Cardano Gift Card</h1>
+      <nav>
+        <div class="navbar-brand">Cardano Gift Card</div>
+        <div class="navbar-right">
+          <a href="/signup">Sign Up</a>
+          <a href="/signin">Sign In</a>
+        </div>
+      </nav>
     </header>
-    <form>
-      <label for="cardano-address">Cardano Address:</label>
-      <input type="text" id="cardano-address" name="cardano-address" />
-      <input type="submit" value="Claim ADA" />
-    </form>
+    <section class="landing-page">
+      <div class="left-side">
+        <h1>Buy ADA for friends and loved ones</h1>
+      </div>
+      <div class="right-side">
+        <a href="/checkout" class="button">Buy Gift Card</a>
+      </div>
+    </section>
   </body>
 </html>
