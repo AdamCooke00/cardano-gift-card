@@ -1,0 +1,26 @@
+{
+  "name": "cardano-gift-card",
+  "version": "1.0.0",
+  "description": "Buy ADA with Fiat for friends and family",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AdamCooke00/cardano-gift-card.git"
+  },
+  "author": "Cardano @ Queen's University",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AdamCooke00/cardano-gift-card/issues"
+  },
+  "homepage": "https://github.com/AdamCooke00/cardano-gift-card#readme",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "ejs": "^3.1.8",
+    "express": "^4.18.2",
+    "stripe": "^11.8.0"
+  }
+}
