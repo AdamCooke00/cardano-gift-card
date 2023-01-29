@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import Stripe from 'stripe';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
+import sgMail from '@sendgrid/mail';
 
 import { Blockfrost, Lucid } from "lucid-cardano"; // NPM
 
@@ -13,6 +14,7 @@ import { Blockfrost, Lucid } from "lucid-cardano"; // NPM
 dotenv.config();
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -78,6 +80,37 @@ app.post('/create-checkout-session', async (req, res) => {
       cancel_url: `${YOUR_DOMAIN}/cancel-payment.html`,
     });
     res.redirect(303, session.url);
+});
+
+app.post('/webhook', async (req, res) => {
+  const event = req.body;
+
+  // Handle the event
+  switch (event.type) {
+    case 'payment_intent.succeeded':
+      const paymentIntent = event.data.object;
+      const msg = {
+        to: paymentIntent.receipt_email, // Change to your recipient
+        from: 'cardano@clubs.queensu.ca', // Change to your verified sender
+        subject: 'ADA Gift Card Receipt',
+        html: '<div><p>The Cardano at Queen\'s Univeristy Team thanks you for purchasing ADA with us today.</p></div>',
+      }
+      sgMail
+        .send(msg)
+        .then(() => {
+          console.log(`Email sent to  ${paymentIntent.receipt_email}`)
+        })
+        .catch((error) => {
+          console.error(error)
+        })
+      break;
+    // ... handle other event types
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+
+  // Return a response to acknowledge receipt of the event
+  res.json({received: true});
 });
 
 const PORT = process.env.PORT || 4242;
