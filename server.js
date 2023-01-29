@@ -3,7 +3,7 @@ import {auth} from './firebase.js';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut   } from 'firebase/auth';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import stripe from 'stripe';
+import Stripe from 'stripe';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 
@@ -12,11 +12,10 @@ import { Blockfrost, Lucid } from "lucid-cardano"; // NPM
 
 dotenv.config();
 const app = express();
-stripe(process.env.STRIPE_SECRET);
+const stripe = new Stripe(process.env.STRIPE_SECRET);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 
 
 const lucid = await Lucid.new(
