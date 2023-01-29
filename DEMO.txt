@@ -1,0 +1,6 @@
+Required for Demo:
+
+STRIPE CLI (stripe API, forward requests to /webhook)
+.env file
+HBAR Receiving address on testnet
+Cardano Receiving address on testnet

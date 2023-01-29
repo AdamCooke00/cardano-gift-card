@@ -1,6 +1,4 @@
 import express from 'express';
-import {auth} from './firebase.js';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut   } from 'firebase/auth';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Stripe from 'stripe';
@@ -9,7 +7,8 @@ import dotenv from 'dotenv';
 import sgMail from '@sendgrid/mail';
 
 import { Blockfrost, Lucid } from "lucid-cardano"; // NPM
-
+import { Client, Hbar, TransferTransaction } from "@hashgraph/sdk";
+const hederaClient = Client.forTestnet();
 
 dotenv.config();
 const app = express();
@@ -41,17 +40,37 @@ app.get('/claim-ada', (req, res) => {
 
 app.post('/claim-ada', async (req, res) => {
   const {address} = req.body;
-
+  
   lucid.selectWalletFromSeed(process.env.SEED_PHRASE, {addressType: "Base"})
   const tx = await lucid.newTx()
-    .payToAddress(address, { lovelace: 10000000 })
+    .payToAddress(address, { lovelace: 5000000 })
     .complete()
     .then((tx) => tx.sign().complete())
     .then((tx) => tx.submit())
     .then(txHash => console.log(txHash))
     .catch((e) => console.log(e));
 
-    res.redirect(303, '/successful-payment');
+  res.redirect(303, '/successful-payment');
+
+});
+
+app.get('/claim-hbar', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'claim-hbar.html'));
+});
+
+app.post('/claim-hbar', async (req, res) => {
+  const {address} = req.body;
+
+  hederaClient.setOperator(process.env.HBAR_ID, process.env.HBAR_PRV);
+
+  const sendHbar = await new TransferTransaction()
+        .addHbarTransfer(process.env.HBAR_ID, Hbar.fromTinybars(-1000000000))
+        .addHbarTransfer(address, Hbar.fromTinybars(1000000000))
+        .execute(hederaClient);
+  const transactionReceipt = await sendHbar.getReceipt(hederaClient);
+  console.log("The transfer transaction from my account to the new account was: " + transactionReceipt.status.toString());
+        
+  res.redirect(303, '/successful-payment');
 });
 
 app.get('/checkout', (req, res) => {
@@ -87,18 +106,31 @@ app.post('/webhook', async (req, res) => {
 
   // Handle the event
   switch (event.type) {
-    case 'payment_intent.succeeded':
-      const paymentIntent = event.data.object;
+    case 'charge.succeeded':
+      const chargeObj = event.data.object;
+      console.log(chargeObj)
       const msg = {
-        to: paymentIntent.receipt_email, // Change to your recipient
+        to: chargeObj.receipt_email, // Change to your recipient
         from: 'cardano@clubs.queensu.ca', // Change to your verified sender
         subject: 'ADA Gift Card Receipt',
-        html: '<div><p>The Cardano at Queen\'s Univeristy Team thanks you for purchasing ADA with us today.</p></div>',
+        html: `<div><p>The Cardano at Queen's Univeristy Team thanks you for purchasing ADA with us today.</p><p>Your receipt is viewable <a href=${chargeObj.receipt_url}>here.</a></p><p>Your gift card has been delivered to ${chargeObj.statement_descriptor}.</div>`,
+      }
+      const msg2 = {
+        to: chargeObj.statement_descriptor, // Change to your recipient
+        from: 'cardano@clubs.queensu.ca', // Change to your verified sender
+        subject: 'ADA Gift Card',
+        html: `<div><p>${chargeObj.receipt_email} bought you $${chargeObj.amount/100} ${chargeObj.currency} worth of ADA! Claim it now using the <a href="http://localhost:4242/claim-ada">Cardano Gift Card Claimer</a></p></div>`,
       }
       sgMail
         .send(msg)
         .then(() => {
-          console.log(`Email sent to  ${paymentIntent.receipt_email}`)
+          console.log(`Receipt Email sent to  ${chargeObj.receipt_email}`)
+        })
+        .then(() => {
+          sgMail.send(msg2)
+        })
+        .then(() => {
+          console.log(`Gift Card sent to ${chargeObj.statement_descriptor}`)
         })
         .catch((error) => {
           console.error(error)

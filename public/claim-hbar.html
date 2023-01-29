@@ -6,11 +6,11 @@
   </head>
   <body>
     <header>
-      <h1>Cardano Gift Card Claimer</h1>
+      <h1>Hedera Gift Card Claimer</h1>
     </header>
-    <p id="confirm-text">Your ADA has been sent to your address. Please await for this transaction to confirm on-chain.</p>
+    <p id="confirm-text">Your HBAR has been sent to your address. Please await for this transaction to confirm on-chain.</p>
     <form id="claim-form">
-      <label for="cardano-address">Cardano Address:</label>
+      <label for="cardano-address">Hedera Address:</label>
       <input type="text" id="cardano-address" name="address" />
       <input type="submit" id="button" value="Claim ADA" />
     </form>
@@ -29,7 +29,7 @@
         const address = event.target.elements.address.value;
         
         // Send the POST request
-        fetch("/claim-ada", {
+        fetch("/claim-hbar", {
             method: "POST",
             body: JSON.stringify({ address }),
             headers: { "Content-Type": "application/json" },

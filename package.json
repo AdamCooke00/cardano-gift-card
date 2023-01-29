@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/AdamCooke00/cardano-gift-card#readme",
   "dependencies": {
+    "@hashgraph/sdk": "^2.19.2",
     "@sendgrid/mail": "^7.7.0",
     "body-parser": "^1.20.1",
     "dotenv": "^16.0.3",
