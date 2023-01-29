@@ -54,11 +54,7 @@ app.post('/claim-ada', async (req, res) => {
 });
 
 app.get('/checkout', (req, res) => {
-  if(!auth.currentUser){
-    res.redirect('/signin')
-  } else{
     res.sendFile(path.join(__dirname, 'public', 'checkout.html'));
-  }
 });
 
 app.get('/successful-payment', (req, res) => {
@@ -69,65 +65,7 @@ app.get('/cancel-payment', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'cancel-payment.html'));
 });
 
-app.get('/signup', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'signup.html'));
-});
-
-app.get('/signin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'signin.html'));
-});
-
-app.post('/signup', async (req, res) => {
-  const { email, password } = req.body;
-  createUserWithEmailAndPassword(auth, email, password)
-  .then((userCredential) => {
-    // Signed in 
-    const user = userCredential.user;
-    console.log(user.uid)
-
-    // ...
-  })
-  .catch((error) => {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    console.log(errorMessage)
-    // ..
-  });
-
-});
-
-app.post('/signin', async (req, res) => {
-  if(!auth.currentUser){
-    const { email, password } = req.body;
-    signInWithEmailAndPassword(auth, email, password)
-    .then((userCredential) => {
-      // Signed in 
-      const user = userCredential.user;
-      console.log(user.uid)
-      res.redirect("/")
-    })
-    .catch((error) => {
-      const errorCode = error.code;
-      const errorMessage = error.message;
-      console.log(errorMessage)
-    });
-  }
-});
-
-app.get('/signout', async (req, res) => {
-  signOut(auth).then(() => {
-    console.log("Sign out success")
-  }).catch((error) => {
-    console.log(errorMessage)
-  });
-
-  res.redirect(303, '/');
-});
-
 app.post('/create-checkout-session', async (req, res) => {
-  if(!auth.currentUser){
-    res.redirect('/signin')
-  } else {
     const session = await stripe.checkout.sessions.create({
       line_items: [
         {
@@ -140,10 +78,7 @@ app.post('/create-checkout-session', async (req, res) => {
       success_url: `${YOUR_DOMAIN}/successful-payment.html`,
       cancel_url: `${YOUR_DOMAIN}/cancel-payment.html`,
     });
-  
     res.redirect(303, session.url);
-  }
-  
 });
 
 const PORT = process.env.PORT || 4242;
