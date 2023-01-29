@@ -1,6 +1,7 @@
-const { initializeApp } = require('firebase/app')
-const { getAuth } = require('firebase/auth')
-require('dotenv').config();
+import {initializeApp} from 'firebase/app';
+import {getAuth} from 'firebase/auth';
+import dotenv from 'dotenv';
+dotenv.config();
 
 
 const firebaseConfig = {
@@ -16,7 +17,4 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-const auth = getAuth(app);
-
-module.exports.auth = auth
-module.exports.app = app
+export const auth = getAuth(app);

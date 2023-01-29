@@ -1,13 +1,28 @@
-require('dotenv').config();
-const express = require('express');
-const path = require('path');
+import express from 'express';
+import {auth} from './firebase.js';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut   } from 'firebase/auth';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import stripe from 'stripe';
+import bodyParser from 'body-parser';
+import dotenv from 'dotenv';
+
+import { Blockfrost, Lucid } from "lucid-cardano"; // NPM
+
+
+dotenv.config();
 const app = express();
-const stripe = require('stripe')(process.env.STRIPE_SECRET);
-const bodyParser = require("body-parser");
-const {auth} = require('./firebase.js');
+stripe(process.env.STRIPE_SECRET);
 
-const  { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut   } = require ('firebase/auth');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
+
+
+const lucid = await Lucid.new(
+  new Blockfrost("https://cardano-preview.blockfrost.io/api/v0", process.env.BLOCKFROST_SECRET),
+  "Preview",
+);
 
 const YOUR_DOMAIN = 'http://localhost:4242';
 
@@ -21,6 +36,21 @@ app.get('/', (req, res) => {
 
 app.get('/claim-ada', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'claim-ada.html'));
+});
+
+app.post('/claim-ada', async (req, res) => {
+  const {address} = req.body;
+
+  lucid.selectWalletFromSeed(process.env.SEED_PHRASE, {addressType: "Base"})
+  const tx = await lucid.newTx()
+    .payToAddress(address, { lovelace: 10000000 })
+    .complete()
+    .then((tx) => tx.sign().complete())
+    .then((tx) => tx.submit())
+    .then(txHash => console.log(txHash))
+    .catch((e) => console.log(e));
+
+    res.redirect(303, '/successful-payment');
 });
 
 app.get('/checkout', (req, res) => {
@@ -46,7 +76,6 @@ app.get('/signup', (req, res) => {
 app.get('/signin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'signin.html'));
 });
-
 
 app.post('/signup', async (req, res) => {
   const { email, password } = req.body;

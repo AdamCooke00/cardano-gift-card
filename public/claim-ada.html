@@ -8,10 +8,30 @@
     <header>
       <h1>Cardano Gift Card</h1>
     </header>
-    <form>
+    <form id="claim-form">
       <label for="cardano-address">Cardano Address:</label>
-      <input type="text" id="cardano-address" name="cardano-address" />
+      <input type="text" id="cardano-address" name="address" />
       <input type="submit" value="Claim ADA" />
     </form>
+    <script>
+      // Add JavaScript here
+      const form = document.getElementById("claim-form");
+      form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      
+      const address = event.target.elements.address.value;
+      
+      // Send the POST request
+      fetch("/claim-ada", {
+          method: "POST",
+          body: JSON.stringify({ address }),
+          headers: { "Content-Type": "application/json" },
+      })
+      .catch((error) => {
+          console.error(error);
+          alert("An error occurred. Please try again.");
+          });
+      });
+  </script>
   </body>
 </html>
