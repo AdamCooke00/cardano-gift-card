@@ -1,13 +1,28 @@
-require('dotenv').config();
-const express = require('express');
-const path = require('path');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import Stripe from 'stripe';
+import bodyParser from 'body-parser';
+import dotenv from 'dotenv';
+import sgMail from '@sendgrid/mail';
+
+import { Blockfrost, Lucid } from "lucid-cardano"; // NPM
+import { Client, Hbar, TransferTransaction } from "@hashgraph/sdk";
+const hederaClient = Client.forTestnet();
+
+dotenv.config();
 const app = express();
-const stripe = require('stripe')(process.env.STRIPE_SECRET);
-const bodyParser = require("body-parser");
-const {auth} = require('./firebase.js');
+const stripe = new Stripe(process.env.STRIPE_SECRET);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
-const  { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut   } = require ('firebase/auth');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
+
+const lucid = await Lucid.new(
+  new Blockfrost("https://cardano-preview.blockfrost.io/api/v0", process.env.BLOCKFROST_SECRET),
+  "Preview",
+);
 
 const YOUR_DOMAIN = 'http://localhost:4242';
 
@@ -23,12 +38,43 @@ app.get('/claim-ada', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'claim-ada.html'));
 });
 
+app.post('/claim-ada', async (req, res) => {
+  const {address} = req.body;
+  
+  lucid.selectWalletFromSeed(process.env.SEED_PHRASE, {addressType: "Base"})
+  const tx = await lucid.newTx()
+    .payToAddress(address, { lovelace: 5000000 })
+    .complete()
+    .then((tx) => tx.sign().complete())
+    .then((tx) => tx.submit())
+    .then(txHash => console.log(txHash))
+    .catch((e) => console.log(e));
+
+  res.redirect(303, '/successful-payment');
+
+});
+
+app.get('/claim-hbar', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'claim-hbar.html'));
+});
+
+app.post('/claim-hbar', async (req, res) => {
+  const {address} = req.body;
+
+  hederaClient.setOperator(process.env.HBAR_ID, process.env.HBAR_PRV);
+
+  const sendHbar = await new TransferTransaction()
+        .addHbarTransfer(process.env.HBAR_ID, Hbar.fromTinybars(-1000000000))
+        .addHbarTransfer(address, Hbar.fromTinybars(1000000000))
+        .execute(hederaClient);
+  const transactionReceipt = await sendHbar.getReceipt(hederaClient);
+  console.log("The transfer transaction from my account to the new account was: " + transactionReceipt.status.toString());
+        
+  res.redirect(303, '/successful-payment');
+});
+
 app.get('/checkout', (req, res) => {
-  if(!auth.currentUser){
-    res.redirect('/signin')
-  } else{
     res.sendFile(path.join(__dirname, 'public', 'checkout.html'));
-  }
 });
 
 app.get('/successful-payment', (req, res) => {
@@ -39,66 +85,7 @@ app.get('/cancel-payment', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'cancel-payment.html'));
 });
 
-app.get('/signup', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'signup.html'));
-});
-
-app.get('/signin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'signin.html'));
-});
-
-
-app.post('/signup', async (req, res) => {
-  const { email, password } = req.body;
-  createUserWithEmailAndPassword(auth, email, password)
-  .then((userCredential) => {
-    // Signed in 
-    const user = userCredential.user;
-    console.log(user.uid)
-
-    // ...
-  })
-  .catch((error) => {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    console.log(errorMessage)
-    // ..
-  });
-
-});
-
-app.post('/signin', async (req, res) => {
-  if(!auth.currentUser){
-    const { email, password } = req.body;
-    signInWithEmailAndPassword(auth, email, password)
-    .then((userCredential) => {
-      // Signed in 
-      const user = userCredential.user;
-      console.log(user.uid)
-      res.redirect("/")
-    })
-    .catch((error) => {
-      const errorCode = error.code;
-      const errorMessage = error.message;
-      console.log(errorMessage)
-    });
-  }
-});
-
-app.get('/signout', async (req, res) => {
-  signOut(auth).then(() => {
-    console.log("Sign out success")
-  }).catch((error) => {
-    console.log(errorMessage)
-  });
-
-  res.redirect(303, '/');
-});
-
 app.post('/create-checkout-session', async (req, res) => {
-  if(!auth.currentUser){
-    res.redirect('/signin')
-  } else {
     const session = await stripe.checkout.sessions.create({
       line_items: [
         {
@@ -111,10 +98,51 @@ app.post('/create-checkout-session', async (req, res) => {
       success_url: `${YOUR_DOMAIN}/successful-payment.html`,
       cancel_url: `${YOUR_DOMAIN}/cancel-payment.html`,
     });
-  
     res.redirect(303, session.url);
+});
+
+app.post('/webhook', async (req, res) => {
+  const event = req.body;
+
+  // Handle the event
+  switch (event.type) {
+    case 'charge.succeeded':
+      const chargeObj = event.data.object;
+      console.log(chargeObj)
+      const msg = {
+        to: chargeObj.receipt_email, // Change to your recipient
+        from: 'cardano@clubs.queensu.ca', // Change to your verified sender
+        subject: 'ADA Gift Card Receipt',
+        html: `<div><p>The Cardano at Queen's Univeristy Team thanks you for purchasing ADA with us today.</p><p>Your receipt is viewable <a href=${chargeObj.receipt_url}>here.</a></p><p>Your gift card has been delivered to ${chargeObj.statement_descriptor}.</div>`,
+      }
+      const msg2 = {
+        to: chargeObj.statement_descriptor, // Change to your recipient
+        from: 'cardano@clubs.queensu.ca', // Change to your verified sender
+        subject: 'ADA Gift Card',
+        html: `<div><p>${chargeObj.receipt_email} bought you $${chargeObj.amount/100} ${chargeObj.currency} worth of ADA! Claim it now using the <a href="http://localhost:4242/claim-ada">Cardano Gift Card Claimer</a></p></div>`,
+      }
+      sgMail
+        .send(msg)
+        .then(() => {
+          console.log(`Receipt Email sent to  ${chargeObj.receipt_email}`)
+        })
+        .then(() => {
+          sgMail.send(msg2)
+        })
+        .then(() => {
+          console.log(`Gift Card sent to ${chargeObj.statement_descriptor}`)
+        })
+        .catch((error) => {
+          console.error(error)
+        })
+      break;
+    // ... handle other event types
+    default:
+      console.log(`Unhandled event type ${event.type}`);
   }
-  
+
+  // Return a response to acknowledge receipt of the event
+  res.json({received: true});
 });
 
 const PORT = process.env.PORT || 4242;

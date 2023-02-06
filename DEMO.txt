@@ -1,0 +1,8 @@
+Required for Demo:
+
+STRIPE CLI (stripe API, forward requests to /webhook)
+https://github.com/stripe/stripe-cli/releases/tag/v1.13.8
+"stripe listen --forward-to localhost:4242/webhook"
+.env file
+HBAR Receiving address on testnet
+Cardano Receiving address on testnet
